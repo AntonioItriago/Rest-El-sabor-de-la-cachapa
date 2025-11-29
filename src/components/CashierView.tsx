@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { type SessionInfo, type Order, OrderStatus, type ModalContent } from '../types';
 import Header from './Header';
@@ -29,8 +28,9 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit, orders, 
         const ordersToProcess = sessionInfo.tableNumber ? orders.filter(o => o.tableNumber === sessionInfo.tableNumber) : orders;
 
         ordersToProcess.forEach(order => {
+            // FIX: Filter out PAID orders from the active tables view.
             if (order.status !== OrderStatus.PAID) {
-                 if (!tables[order.tableNumber]) {
+                if (!tables[order.tableNumber]) {
                     tables[order.tableNumber] = { waiterId: order.waiterId, clientName: order.clientName, orders: [], total: 0 };
                 }
                 tables[order.tableNumber].orders.push(order);
@@ -89,11 +89,12 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit, orders, 
     };
 
     const getStatusChipColor = (status: OrderStatus) => {
-        const colors: Record<OrderStatus, string> = {
+        const colors: Partial<Record<OrderStatus, string>> = {
             [OrderStatus.PENDING]: 'bg-yellow-100 text-yellow-800',
             [OrderStatus.APPROVED]: 'bg-green-100 text-green-800',
             [OrderStatus.DELIVERED]: 'bg-blue-100 text-blue-800',
             [OrderStatus.BILL_REQUESTED]: 'bg-red-100 text-red-800',
+            // FIX: Add styling for the PAID status.
             [OrderStatus.PAID]: 'bg-purple-100 text-purple-800',
         };
         return colors[status] || 'bg-slate-100 text-slate-800';

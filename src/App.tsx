@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Role, type MenuItem, type SessionInfo, type Order, OrderStatus, type CartItem, type WaiterCall } from './types';
 import { fetchMenuData } from './services/menuService';
@@ -99,6 +98,7 @@ const App: React.FC = () => {
     };
     
     const handleMarkTableAsPaid = (tableNumber: string) => {
+        // FIX: Update order status to PAID instead of filtering them out.
         setOrders(prevOrders =>
             prevOrders.map(order =>
                 (order.tableNumber === tableNumber && order.status !== OrderStatus.PENDING)
@@ -119,7 +119,7 @@ const App: React.FC = () => {
     const handleReassignTable = (tableNumber: string, newWaiterId: string) => {
         setOrders(prevOrders =>
             prevOrders.map(order =>
-                order.tableNumber === tableNumber && order.status !== OrderStatus.PAID
+                order.tableNumber === tableNumber
                  ? { ...order, waiterId: newWaiterId } 
                  : order
             )
