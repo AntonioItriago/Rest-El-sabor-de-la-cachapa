@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { type MenuItem, type CartItem, type SessionInfo, type ModalContent, type Order, OrderStatus } from '../types';
 import Header from './Header';
@@ -27,7 +26,6 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
     const [paymentMethodSent, setPaymentMethodSent] = useState(false);
 
     const cartTotalUsd = cart.reduce((total, item) => total + item.price * item.quantity, 0);
-    const cartTotalVes = convertToVes(cartTotalUsd);
     
     const approvedTotal = orders
         .filter(o => o.status !== OrderStatus.PENDING && o.status !== OrderStatus.PAID)
@@ -122,26 +120,24 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
                     <div className="w-full max-w-lg bg-white p-8 rounded-xl shadow-2xl text-center animate-fade-in">
                         {paymentMethodSent ? (
                             <>
-                                <h2 className="text-3xl font-bold text-gray-800 mb-4">¡Gracias!</h2>
-                                 <svg className="w-16 h-16 mx-auto mb-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 a 9 9 0 0118 0z"></path></svg>
-                                <p className="text-gray-600 leading-relaxed">
-                                    El mesonero **{sessionInfo.waiterId}** ha sido notificado y se dirige a su mesa para procesar el pago.
-                                </p>
-                                <p className="text-sm text-gray-500 mt-6">Puede cerrar esta ventana o esperar. ¡Agradecemos su visita!</p>
+                                <h2 className="text-3xl font-bold text-slate-800 mb-4">¡Gracias!</h2>
+                                 <svg className="w-16 h-16 mx-auto mb-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <p className="text-slate-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: `El mesonero <strong>${sessionInfo.waiterId}</strong> ha sido notificado y se dirige a su mesa para procesar el pago.`}}></p>
+                                <p className="text-sm text-slate-500 mt-6">Puede cerrar esta ventana o esperar. ¡Agradecemos su visita!</p>
                             </>
                         ) : (
                             <>
-                                <h2 className="text-3xl font-bold text-gray-800 mb-2">Total a Pagar</h2>
+                                <h2 className="text-3xl font-bold text-slate-800 mb-2">Total a Pagar</h2>
                                 <p className="text-4xl font-extrabold text-indigo-600 mb-4">{formatPrice(approvedTotal, 'USD')}</p>
-                                <p className="text-lg text-gray-500 mb-8">({formatPrice(convertToVes(approvedTotal), 'VES')})</p>
+                                <p className="text-lg text-slate-500 mb-8">({formatPrice(convertToVes(approvedTotal), 'VES')})</p>
                                 
-                                <h3 className="text-xl font-semibold text-gray-700 mb-4">Seleccione su forma de pago</h3>
+                                <h3 className="text-xl font-semibold text-slate-700 mb-4">Seleccione su forma de pago</h3>
                                 <div className="space-y-3">
                                     <button onClick={() => handlePaymentSelection('Efectivo')} className="w-full py-3 text-lg bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition shadow-md">Efectivo</button>
                                     <button onClick={() => handlePaymentSelection('Tarjeta')} className="w-full py-3 text-lg bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition shadow-md">Tarjeta</button>
                                     <button onClick={() => handlePaymentSelection('Pago Móvil')} className="w-full py-3 text-lg bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 transition shadow-md">Pago Móvil / Zelle</button>
                                 </div>
-                                <p className="text-sm text-gray-500 mt-8">Al seleccionar una opción, se notificará al mesonero.</p>
+                                <p className="text-sm text-slate-500 mt-8">Al seleccionar una opción, se notificará al mesonero.</p>
                             </>
                         )}
                     </div>
@@ -164,21 +160,21 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
                     </div>
                     
                     <div className="mb-6 flex flex-wrap gap-2">
-                         <button onClick={() => setCurrentCategory('all')} className={`px-4 py-2 rounded-full text-sm font-medium transition ${currentCategory === 'all' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}>
+                         <button onClick={() => setCurrentCategory('all')} className={`px-4 py-2 rounded-full text-sm font-medium transition ${currentCategory === 'all' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'}`}>
                             Todas
                         </button>
                         {categories.map(cat => (
-                            <button key={cat} onClick={() => setCurrentCategory(cat)} className={`px-4 py-2 rounded-full text-sm font-medium transition ${currentCategory === cat ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}>
+                            <button key={cat} onClick={() => setCurrentCategory(cat)} className={`px-4 py-2 rounded-full text-sm font-medium transition ${currentCategory === cat ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'}`}>
                                 {cat}
                             </button>
                         ))}
                     </div>
 
-                    <h2 className="text-3xl font-bold text-gray-800 mb-4">
+                    <h2 className="text-3xl font-bold text-slate-800 mb-4">
                         {currentCategory === 'all' ? 'Todos los Productos' : currentCategory}
                     </h2>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="space-y-4">
                         {filteredMenu.map(item => {
                              const cartItem = cart.find(ci => ci.id === item.id);
                              return (
@@ -193,27 +189,27 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
                         })}
                     </div>
                      {filteredMenu.length === 0 && currentCategory !== 'all' && (
-                        <p className="text-center p-8 text-lg text-gray-500">
+                        <p className="text-center p-8 text-lg text-slate-500">
                             No hay productos en la categoría '{currentCategory}'.
                         </p>
                     )}
                 </main>
                 
                 <aside className="w-full lg:w-1/4">
-                    <div className="sticky top-24 bg-white p-6 rounded-xl shadow-2xl">
+                    <div className="sticky top-24 bg-white p-5 rounded-xl shadow-xl border border-slate-100">
                         {/* Cart Section */}
-                        <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-4">Mi Pedido</h2>
+                        <h2 className="text-xl font-bold text-slate-800 border-b border-slate-200 pb-3 mb-4">Mi Pedido</h2>
                         <div className="max-h-80 overflow-y-auto pr-2 mb-4">
                             {cart.length === 0 ? (
-                                <div className="text-center py-10 text-gray-500">
+                                <div className="text-center py-10 text-slate-500">
                                     <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                     <p>Añade productos a tu pedido.</p>
                                 </div>
                             ) : (
                                 cart.map(item => (
-                                    <div key={item.id} className="flex justify-between items-center border-b pb-2 mb-2">
+                                    <div key={item.id} className="flex justify-between items-center border-b border-slate-100 pb-2 mb-2">
                                         <div className="flex-grow pr-2">
-                                            <p className="font-semibold text-gray-800 text-sm">{item.name}</p>
+                                            <p className="font-semibold text-slate-800 text-sm">{item.name}</p>
                                             <div className="flex items-center mt-1">
                                                 <button onClick={() => handleUpdateQuantity(item.id, -1)} className="text-red-500 rounded-full w-5 h-5 flex items-center justify-center bg-red-100 hover:bg-red-200">-</button>
                                                 <span className="mx-2 text-sm font-bold">{item.quantity}</span>
@@ -227,15 +223,12 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
                                 ))
                             )}
                         </div>
-                        <div className="border-t pt-4">
-                            <h3 className="text-lg font-bold text-gray-800 mb-2">Total del Pedido</h3>
-                            <div className="flex flex-col justify-between items-start text-xl font-extrabold text-gray-800 mb-4">
-                                <span className="text-sm font-normal text-gray-500">USD:</span>
-                                <span>{formatPrice(cartTotalUsd, 'USD')}</span>
-                                <span className="text-sm font-normal text-gray-500 mt-2">VES (Est.):</span>
-                                <span className="text-lg text-green-600">{formatPrice(cartTotalVes, 'VES')}</span>
+                        <div className="border-t border-slate-200 pt-4">
+                            <div className="flex justify-between items-baseline font-bold text-slate-800 mb-4">
+                               <span className="text-lg">Total del Pedido:</span>
+                               <span className="text-2xl text-indigo-600">{formatPrice(cartTotalUsd, 'USD')}</span>
                             </div>
-                            <button onClick={handleSendOrder} disabled={cart.length === 0} className="w-full py-3 bg-indigo-500 text-white font-bold rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-600 shadow-xl mb-3 transform active:scale-[0.99]">
+                            <button onClick={handleSendOrder} disabled={cart.length === 0} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-indigo-700 shadow-lg mb-3 transform active:scale-[0.99]">
                                 Enviar Pedido
                             </button>
                         </div>

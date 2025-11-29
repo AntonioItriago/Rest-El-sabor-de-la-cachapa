@@ -1,6 +1,12 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+// Fix: Add fileURLToPath to handle ES module scope for __dirname
+import { fileURLToPath } from 'url';
+
+// Fix: Define __dirname for ES module scope
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -16,7 +22,8 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+          // Fix: Resolve __dirname and point alias to src directory
+          '@': path.resolve(__dirname, 'src'),
         }
       }
     };
