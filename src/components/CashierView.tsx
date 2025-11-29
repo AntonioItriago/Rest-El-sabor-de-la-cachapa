@@ -11,7 +11,7 @@ interface CashierViewProps {
 }
 
 const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
-    const { orders, waiters, setWaiters, handleClearTable, handleReassignTable } = useData();
+    const { orders, waiters, handleClearTable, handleReassignTable, handleAddWaiter, handleDeleteWaiter, tableAssignments, handleAssignTables } = useData();
     const [modalContent, setModalContent] = useState<ModalContent | null>(null);
     const [reassignModal, setReassignModal] = useState<{ open: boolean; tableNumber: string; currentWaiter: string; }>({ open: false, tableNumber: '', currentWaiter: '' });
     const [newWaiterId, setNewWaiterId] = useState('');
@@ -19,14 +19,16 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
     const [newWaiterName, setNewWaiterName] = useState('');
     const [selectedTable, setSelectedTable] = useState<string | null>(null);
     const [closeTableModal, setCloseTableModal] = useState<{ open: boolean; tableNumber: string | null }>({ open: false, tableNumber: null });
-    
+    const [assignTableModal, setAssignTableModal] = useState<{ open: boolean; waiter: string | null; tables: string[] }>({ open: false, waiter: null, tables: [] });
+    const [selectedTablesToAssign, setSelectedTablesToAssign] = useState<string[]>([]);
+
     const activeTables = useMemo(() => {
-        const tables: { [key: string]: { waiterId: string, clientName?: string, orders: Order[], total: number } } = {};
+        const tables: { [key: string]: { waiterId: string | null, clientName?: string, orders: Order[], total: number } } = {};
         const ordersToProcess = sessionInfo.tableNumber ? orders.filter(o => o.tableNumber === sessionInfo.tableNumber) : orders;
 
         ordersToProcess.forEach(order => {
             if (order.status !== OrderStatus.PAID) {
-                 if (!tables[order.tableNumber]) {
+                if (!tables[order.tableNumber]) {
                     tables[order.tableNumber] = { waiterId: order.waiterId, clientName: order.clientName, orders: [], total: 0 };
                 }
                 tables[order.tableNumber].orders.push(order);
@@ -35,8 +37,16 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                 }
             }
         });
+        
+        // Also show tables that are active but have no orders yet
+        Object.entries(tableAssignments).forEach(([tableNum, waiterId]) => {
+            if (waiterId && !tables[tableNum]) {
+                 tables[tableNum] = { waiterId, orders: [], total: 0 };
+            }
+        });
+
         return tables;
-    }, [orders, sessionInfo.tableNumber]);
+    }, [orders, sessionInfo.tableNumber, tableAssignments]);
     
     const confirmCloseTable = () => {
         if (closeTableModal.tableNumber) {
@@ -69,19 +79,45 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
         }
     };
     
-    const handleAddWaiter = (e: React.FormEvent) => {
+    const handleAddWaiterSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const trimmedName = newWaiterName.trim();
         if (trimmedName && !waiters.includes(trimmedName)) {
-            setWaiters(prev => [...prev, trimmedName].sort());
-            setNewWaiterName('');
+            handleAddWaiter(trimmedName);
+            const unassignedTables = Object.keys(tableAssignments).filter(
+                table => tableAssignments[table] === null
+            );
+            if (unassignedTables.length > 0) {
+                setAssignTableModal({ open: true, waiter: trimmedName, tables: unassignedTables });
+            } else {
+                setNewWaiterName('');
+            }
         }
     };
 
-    const handleDeleteWaiter = (waiterToDelete: string) => {
-        if (window.confirm(`¿Estás seguro de que quieres eliminar al mesero "${waiterToDelete}"?`)) {
-            setWaiters(prev => prev.filter(w => w !== waiterToDelete));
+    const handleDeleteWaiterClick = (waiterToDelete: string) => {
+        if (window.confirm(`¿Estás seguro de que quieres eliminar al mesero "${waiterToDelete}"? Todas sus mesas quedarán sin asignar.`)) {
+            handleDeleteWaiter(waiterToDelete);
         }
+    };
+
+    const handleAssignTablesSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (assignTableModal.waiter && selectedTablesToAssign.length > 0) {
+            handleAssignTables(assignTableModal.waiter, selectedTablesToAssign);
+        }
+        setAssignTableModal({ open: false, waiter: null, tables: [] });
+        setSelectedTablesToAssign([]);
+        setNewWaiterName('');
+        setIsWaiterModalOpen(false);
+    };
+
+    const handleTableCheckboxChange = (tableNumber: string) => {
+        setSelectedTablesToAssign(prev =>
+            prev.includes(tableNumber)
+                ? prev.filter(t => t !== tableNumber)
+                : [...prev, tableNumber]
+        );
     };
 
     const getStatusChipColor = (status: OrderStatus) => {
@@ -99,11 +135,10 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
 
     const canCloseTable = useMemo(() => {
         if (!selectedTableData) return false;
+        const hasOrders = selectedTableData.orders.length > 0;
+        if (!hasOrders) return false; // Can't close a table with no consumption
         const isBillRequested = selectedTableData.orders.some(o => o.status === OrderStatus.BILL_REQUESTED);
-        const allItemsFinalized = selectedTableData.orders.every(o => 
-            o.status === OrderStatus.DELIVERED || o.status === OrderStatus.BILL_REQUESTED
-        );
-        return isBillRequested && allItemsFinalized;
+        return isBillRequested;
     }, [selectedTableData]);
 
     return (
@@ -137,7 +172,7 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                                             <h3 className="font-bold text-lg">Mesa {tableNum}</h3>
                                             {isBillRequested && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800">Solicitando Cuenta</span>}
                                         </div>
-                                        <p className="text-sm text-slate-600">Mesero: <span className="font-semibold">{data.waiterId}</span></p>
+                                        <p className="text-sm text-slate-600">Mesero: <span className="font-semibold">{data.waiterId || 'No Asignado'}</span></p>
                                         <p className="text-sm text-slate-600 mt-1">
                                             Total: <strong className="text-md">{formatPrice(data.total, 'USD')}</strong> 
                                             <span className="text-green-600"> / {formatPrice(convertToVes(data.total), 'VES')}</span>
@@ -176,19 +211,19 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                                     )}
                                 </div>
                                 <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                                    <button onClick={() => handleOpenReassignModal(selectedTable, selectedTableData.waiterId)} className="py-2 px-4 text-sm bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition w-full md:w-auto">Reasignar</button>
+                                    <button onClick={() => handleOpenReassignModal(selectedTable, selectedTableData.waiterId || '')} className="py-2 px-4 text-sm bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition w-full md:w-auto">Reasignar</button>
                                     <button 
                                         onClick={() => setCloseTableModal({open: true, tableNumber: selectedTable})} 
                                         className="py-2 px-6 bg-purple-500 text-white font-bold rounded-lg transition shadow-md active:scale-95 w-full md:w-auto disabled:bg-slate-400 disabled:cursor-not-allowed"
                                         disabled={!canCloseTable}
-                                        title={!canCloseTable ? 'La cuenta debe ser solicitada y todos los items entregados' : 'Cobrar y cerrar mesa'}
-                                    >Cobrar y Cerrar Mesa</button>
+                                        title={!canCloseTable ? 'La cuenta debe ser solicitada para poder cerrar la mesa' : 'Cobrar y cerrar mesa'}
+                                    >Cerrar Mesa</button>
                                 </div>
                             </div>
 
                             <h3 className="font-bold text-lg mb-2 border-t border-slate-200 pt-4">Detalle de Pedidos</h3>
                             <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
-                               {selectedTableData.orders.map(order => (
+                               {selectedTableData.orders.length > 0 ? selectedTableData.orders.map(order => (
                                    <div key={order.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                                        <div className="flex justify-between items-center mb-2">
                                            <span className="font-semibold text-sm">Pedido #{order.id.substring(0,6)}</span>
@@ -201,7 +236,7 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                                            </li>
                                        ))}</ul>
                                    </div>
-                               ))}
+                               )) : <p className="text-slate-500 text-center py-4">Esta mesa aún no tiene pedidos.</p>}
                             </div>
                         </section>
                     )
@@ -216,7 +251,7 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                             <h3 className="text-lg font-bold text-slate-800">Confirmar Cierre de Mesa</h3>
                         </div>
                         <div className="p-6">
-                            <p className="text-slate-700" dangerouslySetInnerHTML={{ __html: `¿Está seguro de que desea cobrar y cerrar la mesa <strong>#${closeTableModal.tableNumber}</strong>? Esta acción es irreversible y eliminará todos sus pedidos.` }}></p>
+                            <p className="text-slate-700" dangerouslySetInnerHTML={{ __html: `¿Está seguro de que desea cerrar la mesa <strong>#${closeTableModal.tableNumber}</strong>? Esta acción es irreversible y eliminará todos sus pedidos.` }}></p>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-b-xl flex justify-end space-x-3">
                             <button onClick={() => setCloseTableModal({ open: false, tableNumber: null })} className="py-2 px-4 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">Cancelar</button>
@@ -226,7 +261,7 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                 </div>
             )}
 
-             {isWaiterModalOpen && (
+            {isWaiterModalOpen && (
                  <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
                     <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
                         <div className="p-4 border-b"><h3 className="text-lg font-bold text-slate-800">Gestionar Mesoneros</h3></div>
@@ -235,11 +270,11 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                                 {waiters.map(waiter => (
                                     <li key={waiter} className="flex justify-between items-center p-2 bg-slate-100 rounded">
                                         <span className="text-slate-800 font-medium">{waiter}</span>
-                                        <button onClick={() => handleDeleteWaiter(waiter)} className="text-red-500 hover:text-red-700 font-bold">Eliminar</button>
+                                        <button onClick={() => handleDeleteWaiterClick(waiter)} className="text-red-500 hover:text-red-700 font-bold">Eliminar</button>
                                     </li>
                                 ))}
                             </ul>
-                            <form onSubmit={handleAddWaiter} className="flex space-x-2">
+                            <form onSubmit={handleAddWaiterSubmit} className="flex space-x-2">
                                 <input type="text" value={newWaiterName} onChange={e => setNewWaiterName(e.target.value)} placeholder="Nuevo mesero" className="flex-grow px-3 py-2 border border-slate-300 rounded-lg" required />
                                 <button type="submit" className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600">Añadir</button>
                             </form>
@@ -249,7 +284,30 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                         </div>
                     </div>
                 </div>
-             )}
+            )}
+
+            {assignTableModal.open && (
+                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+                    <form onSubmit={handleAssignTablesSubmit} className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                        <div className="p-4 border-b"><h3 className="text-lg font-bold text-slate-800">Asignar Mesas a {assignTableModal.waiter}</h3></div>
+                        <div className="p-6 max-h-80 overflow-y-auto">
+                            <p className="text-slate-600 mb-4">Selecciona las mesas que deseas asignar a este nuevo mesonero.</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {assignTableModal.tables.map(tableNum => (
+                                    <label key={tableNum} className="flex items-center space-x-2 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
+                                        <input type="checkbox" checked={selectedTablesToAssign.includes(tableNum)} onChange={() => handleTableCheckboxChange(tableNum)} className="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500" />
+                                        <span className="font-medium">Mesa {tableNum}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-b-xl flex justify-end space-x-3">
+                            <button type="button" onClick={() => setAssignTableModal({ open: false, waiter: null, tables: []})} className="py-2 px-4 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">Omitir</button>
+                            <button type="submit" className="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition">Asignar ({selectedTablesToAssign.length})</button>
+                        </div>
+                    </form>
+                </div>
+            )}
 
             {reassignModal.open && (
                 <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">

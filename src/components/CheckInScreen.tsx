@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Role, type SessionInfo } from '../types';
-import { TABLE_WAITER_ASSIGNMENTS } from '../constants';
+import { useData } from '../context/DataContext';
 
 interface CheckInScreenProps {
     role: Role;
@@ -14,6 +13,8 @@ const CheckInScreen: React.FC<CheckInScreenProps> = ({ role, onSubmit, onBack })
     const [tableNumber, setTableNumber] = useState('');
     const [clientName, setClientName] = useState('');
     const [error, setError] = useState('');
+
+    const { tableAssignments } = useData();
 
     const isClient = role === Role.CLIENT;
     const isWaiter = role === Role.WAITER;
@@ -28,9 +29,13 @@ const CheckInScreen: React.FC<CheckInScreenProps> = ({ role, onSubmit, onBack })
                 setError('El número de mesa es obligatorio.');
                 return;
             }
-            const assignedWaiter = TABLE_WAITER_ASSIGNMENTS[tableNumber];
+            const assignedWaiter = tableAssignments[tableNumber];
+            if (assignedWaiter === undefined) {
+                setError(`La mesa #${tableNumber} no es válida.`);
+                return;
+            }
             if (!assignedWaiter) {
-                setError(`La mesa #${tableNumber} no es válida o no tiene un mesero asignado.`);
+                setError(`La mesa #${tableNumber} no tiene un mesero asignado. Por favor, consulte al personal.`);
                 return;
             }
             onSubmit({

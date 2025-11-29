@@ -4,8 +4,8 @@ export const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRsTRhos
 // This would ideally be fetched from a live API.
 export const BCV_RATE = 242.79;
 
-// Predefined table to waiter assignments for initial setup
-export const TABLE_WAITER_ASSIGNMENTS: { [key: string]: string } = {
+// Initial table to waiter assignments for first-time setup
+export const INITIAL_TABLE_WAITER_ASSIGNMENTS: { [key: string]: string | null } = {
   '1': 'Carlos Rivas',
   '2': 'Ana Fuentes',
   '3': 'Luis Jimenez',
@@ -16,6 +16,16 @@ export const TABLE_WAITER_ASSIGNMENTS: { [key: string]: string } = {
   '8': 'Sofia Gomez',
   '9': 'Luis Jimenez',
   '10': 'Pedro Castillo',
+  '11': 'Carlos Rivas',
+  '12': 'Ana Fuentes',
+  '13': null,
+  '14': 'Sofia Gomez',
+  '15': 'Pedro Castillo',
+  '16': null,
+  '17': null,
+  '18': 'Luis Jimenez',
+  '19': 'Carlos Rivas',
+  '20': 'Ana Fuentes',
 };
 
 // Initial list of waiters if none are in local storage

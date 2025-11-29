@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { type MenuItem, type CartItem, type SessionInfo, type ModalContent, type Order, OrderStatus } from '../types';
+import { type MenuItem, type CartItem, type SessionInfo, type ModalContent, OrderStatus } from '../types';
 import Header from './Header';
 import MenuItemCard from './MenuItemCard';
 import Modal from './Modal';
@@ -16,7 +16,6 @@ interface ClientViewProps {
 }
 
 const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionInfo, onExit, onUpdateSession }) => {
-    // FIX: Corrected typo from `onRequestBill` to `handleRequestBill` to match context provider.
     const { orders, handlePlaceOrder, handleRequestBill, handleCallWaiter } = useData();
     const ordersForTable = orders.filter(o => o.tableNumber === sessionInfo.tableNumber);
 
@@ -95,7 +94,6 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
     };
 
     const handlePaymentSelection = (method: string) => {
-        // FIX: Corrected typo from `onRequestBill` to `handleRequestBill`.
         handleRequestBill(sessionInfo.tableNumber!, method);
         setPaymentMethodSent(true);
         showModal('✅ Notificación Enviada', `El mesonero **${sessionInfo.waiterId}** ha sido notificado. Vendrá en breve para procesar su pago con **${method}**.`, 'success');
