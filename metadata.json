@@ -1,0 +1,5 @@
+{
+  "name": "Menú Digital El Sabor de la Cachapa",
+  "description": "A digital menu application for a restaurant, allowing customers to view the menu, place orders, and call for service. It also includes a view for waiters to see the full price list.",
+  "requestFramePermissions": []
+}
