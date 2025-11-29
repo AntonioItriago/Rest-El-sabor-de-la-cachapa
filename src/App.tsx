@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Role, type MenuItem, type SessionInfo, type Order, OrderStatus, type CartItem, type WaiterCall } from './types';
+import { Role, type MenuItem, type SessionInfo } from './types';
 import { fetchMenuData } from './services/menuService';
 import RoleSelectionScreen from './components/RoleSelectionScreen';
 import CheckInScreen from './components/CheckInScreen';
@@ -8,19 +8,15 @@ import WaiterView from './components/WaiterView';
 import CashierView from './components/CashierView';
 import Spinner from './components/Spinner';
 import ErrorDisplay from './components/ErrorDisplay';
-import useLocalStorage from './hooks/useLocalStorage';
-import { INITIAL_WAITERS } from './constants';
+import { DataProvider } from './context/DataContext';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
     const [currentRole, setCurrentRole] = useState<Role | null>(null);
     const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
     const [menuData, setMenuData] = useState<MenuItem[]>([]);
     const [categories, setCategories] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [orders, setOrders] = useLocalStorage<Order[]>('restaurantOrders', []);
-    const [waiters, setWaiters] = useLocalStorage<string[]>('restaurantWaiters', INITIAL_WAITERS);
-    const [waiterCalls, setWaiterCalls] = useLocalStorage<WaiterCall[]>('restaurantWaiterCalls', []);
 
     const loadMenu = useCallback(async () => {
         setIsLoading(true);
@@ -56,87 +52,9 @@ const App: React.FC = () => {
         setCurrentRole(null);
         setSessionInfo(null);
     };
-
-    const handlePlaceOrder = (cart: CartItem[], sessionInfo: SessionInfo) => {
-        const newOrder: Order = {
-            id: crypto.randomUUID(),
-            tableNumber: sessionInfo.tableNumber!,
-            waiterId: sessionInfo.waiterId,
-            clientName: sessionInfo.clientName,
-            items: cart,
-            total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-            status: OrderStatus.PENDING,
-            timestamp: Date.now(),
-        };
-        setOrders(prevOrders => [...prevOrders, newOrder]);
-    };
-
-    const handleApproveOrder = (orderId: string) => {
-        setOrders(prevOrders => 
-            prevOrders.map(order => 
-                order.id === orderId ? { ...order, status: OrderStatus.APPROVED } : order
-            )
-        );
-    };
     
-    const handleMarkAsDelivered = (orderId: string) => {
-         setOrders(prevOrders => 
-            prevOrders.map(order => 
-                order.id === orderId ? { ...order, status: OrderStatus.DELIVERED } : order
-            )
-        );
-    };
-    
-    const handleRequestBill = (tableNumber: string, paymentMethod: string) => {
-        setOrders(prevOrders =>
-            prevOrders.map(order =>
-                (order.tableNumber === tableNumber && (order.status === OrderStatus.APPROVED || order.status === OrderStatus.DELIVERED))
-                ? { ...order, status: OrderStatus.BILL_REQUESTED, paymentMethod }
-                : order
-            )
-        );
-    };
-    
-    const handleMarkTableAsPaid = (tableNumber: string) => {
-        // FIX: Update order status to PAID instead of filtering them out.
-        setOrders(prevOrders =>
-            prevOrders.map(order =>
-                (order.tableNumber === tableNumber && order.status !== OrderStatus.PENDING)
-                ? { ...order, status: OrderStatus.PAID }
-                : order
-            )
-        );
-    };
-    
-    const handleClearTable = (tableNumber: string) => {
-        setOrders(prevOrders => prevOrders.filter(order => order.tableNumber !== tableNumber));
-    };
-
     const handleUpdateSession = (newInfo: Partial<SessionInfo>) => {
         setSessionInfo(prev => prev ? { ...prev, ...newInfo } : null);
-    };
-    
-    const handleReassignTable = (tableNumber: string, newWaiterId: string) => {
-        setOrders(prevOrders =>
-            prevOrders.map(order =>
-                order.tableNumber === tableNumber
-                 ? { ...order, waiterId: newWaiterId } 
-                 : order
-            )
-        );
-    };
-    
-    const handleCallWaiter = (tableNumber: string, waiterId: string) => {
-        setWaiterCalls(prevCalls => {
-            if (prevCalls.some(call => call.tableNumber === tableNumber)) {
-                return prevCalls;
-            }
-            return [...prevCalls, { tableNumber, waiterId, timestamp: Date.now() }];
-        });
-    };
-
-    const handleAcknowledgeCall = (tableNumber: string) => {
-        setWaiterCalls(prevCalls => prevCalls.filter(call => call.tableNumber !== tableNumber));
     };
 
     const renderContent = () => {
@@ -169,12 +87,8 @@ const App: React.FC = () => {
                         menuData={menuData} 
                         categories={categories} 
                         sessionInfo={sessionInfo} 
-                        onExit={handleReset} 
-                        orders={orders.filter(o => o.tableNumber === sessionInfo.tableNumber)}
-                        onPlaceOrder={handlePlaceOrder}
+                        onExit={handleReset}
                         onUpdateSession={handleUpdateSession}
-                        onRequestBill={handleRequestBill}
-                        onCallWaiter={handleCallWaiter}
                     />;
         }
 
@@ -182,12 +96,6 @@ const App: React.FC = () => {
             return <WaiterView 
                         sessionInfo={sessionInfo} 
                         onExit={handleReset} 
-                        orders={orders}
-                        onApproveOrder={handleApproveOrder}
-                        onMarkAsDelivered={handleMarkAsDelivered}
-                        waiterCalls={waiterCalls}
-                        onAcknowledgeCall={handleAcknowledgeCall}
-                        onMarkTableAsPaid={handleMarkTableAsPaid}
                     />;
         }
 
@@ -195,11 +103,6 @@ const App: React.FC = () => {
              return <CashierView 
                         sessionInfo={sessionInfo} 
                         onExit={handleReset} 
-                        orders={orders}
-                        onClearTable={handleClearTable}
-                        onReassignTable={handleReassignTable}
-                        waiters={waiters}
-                        setWaiters={setWaiters}
                     />;
         }
 
@@ -212,5 +115,11 @@ const App: React.FC = () => {
         </div>
     );
 };
+
+const App: React.FC = () => (
+    <DataProvider>
+        <AppContent />
+    </DataProvider>
+);
 
 export default App;

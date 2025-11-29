@@ -1,21 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { type SessionInfo, type Order, OrderStatus, type ModalContent, type WaiterCall } from '../types';
+import { type SessionInfo, type Order, OrderStatus, type ModalContent } from '../types';
 import Header from './Header';
 import OrderCard from './OrderCard';
 import Modal from './Modal';
+import { useData } from '../context/DataContext';
 
 interface WaiterViewProps {
     sessionInfo: SessionInfo;
     onExit: () => void;
-    orders: Order[];
-    onApproveOrder: (orderId: string) => void;
-    onMarkAsDelivered: (orderId: string) => void;
-    waiterCalls: WaiterCall[];
-    onAcknowledgeCall: (tableNumber: string) => void;
-    onMarkTableAsPaid: (tableNumber: string) => void;
 }
 
-const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit, orders, onApproveOrder, onMarkAsDelivered, waiterCalls, onAcknowledgeCall, onMarkTableAsPaid }) => {
+const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit }) => {
+    const { orders, waiterCalls, handleApproveOrder, handleMarkAsDelivered, handleAcknowledgeCall, handleMarkTableAsPaid } = useData();
     const [modalContent, setModalContent] = useState<ModalContent | null>(null);
 
     const { waiterId: currentWaiterId, tableNumber } = sessionInfo;
@@ -56,7 +52,7 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit, orders, on
     const activeOrders = ordersForView.filter(o => o.status !== OrderStatus.PENDING && o.status !== OrderStatus.BILL_REQUESTED).sort((a, b) => b.timestamp - a.timestamp);
 
     const handleApprove = (orderId: string) => {
-        onApproveOrder(orderId);
+        handleApproveOrder(orderId);
         setModalContent({
             title: '✅ Pedido Aprobado',
             message: `El pedido **#${orderId.substring(0, 6)}** ha sido aprobado y enviado a cocina.`,
@@ -65,7 +61,7 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit, orders, on
     };
     
     const handleDeliver = (orderId: string) => {
-        onMarkAsDelivered(orderId);
+        handleMarkAsDelivered(orderId);
         setModalContent({
             title: '✅ Pedido Entregado',
             message: `El pedido **#${orderId.substring(0, 6)}** ha sido marcado como entregado en la mesa.`,
@@ -74,10 +70,9 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit, orders, on
     }
     
      const handleConfirmPayment = (tableNumber: string) => {
-        onMarkTableAsPaid(tableNumber);
+        handleMarkTableAsPaid(tableNumber);
         setModalContent({
             title: '✅ Cobro Confirmado',
-            // FIX: Update modal message to reflect status change instead of table closure.
             message: `La mesa **#${tableNumber}** ha sido marcada como pagada.`,
             type: 'success'
         });
@@ -89,7 +84,6 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit, orders, on
             [OrderStatus.APPROVED]: 'bg-green-100 text-green-800',
             [OrderStatus.DELIVERED]: 'bg-blue-100 text-blue-800',
             [OrderStatus.BILL_REQUESTED]: 'bg-red-100 text-red-800',
-            // FIX: Add styling for the PAID status.
             [OrderStatus.PAID]: 'bg-purple-100 text-purple-800',
         };
         return colors[status] || 'bg-slate-100 text-slate-800';
@@ -109,7 +103,7 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit, orders, on
                                          <svg className="w-8 h-8 text-yellow-500 mr-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 003 15h14a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path></svg>
                                         <span className="font-bold text-lg">Mesa {call.tableNumber} solicita atención</span>
                                     </div>
-                                    <button onClick={() => onAcknowledgeCall(call.tableNumber)} className="py-1 px-3 bg-yellow-400 text-yellow-900 font-semibold rounded-lg hover:bg-yellow-500 transition">
+                                    <button onClick={() => handleAcknowledgeCall(call.tableNumber)} className="py-1 px-3 bg-yellow-400 text-yellow-900 font-semibold rounded-lg hover:bg-yellow-500 transition">
                                         Atendido
                                     </button>
                                 </div>

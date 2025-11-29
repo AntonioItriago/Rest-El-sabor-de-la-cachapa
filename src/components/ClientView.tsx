@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { type MenuItem, type CartItem, type SessionInfo, type ModalContent, type Order, OrderStatus } from '../types';
 import Header from './Header';
@@ -6,20 +5,21 @@ import MenuItemCard from './MenuItemCard';
 import Modal from './Modal';
 import ClientOrderStatus from './ClientOrderStatus';
 import { formatPrice, convertToVes } from '../utils/formatters';
+import { useData } from '../context/DataContext';
 
 interface ClientViewProps {
     menuData: MenuItem[];
     categories: string[];
     sessionInfo: SessionInfo;
     onExit: () => void;
-    orders: Order[];
-    onPlaceOrder: (cart: CartItem[], sessionInfo: SessionInfo) => void;
     onUpdateSession: (newInfo: Partial<SessionInfo>) => void;
-    onRequestBill: (tableNumber: string, paymentMethod: string) => void;
-    onCallWaiter: (tableNumber: string, waiterId: string) => void;
 }
 
-const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionInfo, onExit, orders, onPlaceOrder, onUpdateSession, onRequestBill, onCallWaiter }) => {
+const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionInfo, onExit, onUpdateSession }) => {
+    // FIX: Corrected typo from `onRequestBill` to `handleRequestBill` to match context provider.
+    const { orders, handlePlaceOrder, handleRequestBill, handleCallWaiter } = useData();
+    const ordersForTable = orders.filter(o => o.tableNumber === sessionInfo.tableNumber);
+
     const [currentCategory, setCurrentCategory] = useState('all');
     const [cart, setCart] = useState<CartItem[]>([]);
     const [modalContent, setModalContent] = useState<ModalContent | null>(null);
@@ -28,12 +28,12 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
 
     const cartTotalUsd = cart.reduce((total, item) => total + item.price * item.quantity, 0);
     
-    const approvedTotal = orders
+    const approvedTotal = ordersForTable
         .filter(o => o.status !== OrderStatus.PENDING && o.status !== OrderStatus.PAID)
         .reduce((sum, order) => sum + order.total, 0);
 
-    const hasPendingOrders = orders.some(o => o.status === OrderStatus.PENDING);
-    const hasBillableOrders = orders.some(o => [OrderStatus.APPROVED, OrderStatus.DELIVERED, OrderStatus.BILL_REQUESTED].includes(o.status));
+    const hasPendingOrders = ordersForTable.some(o => o.status === OrderStatus.PENDING);
+    const hasBillableOrders = ordersForTable.some(o => [OrderStatus.APPROVED, OrderStatus.DELIVERED, OrderStatus.BILL_REQUESTED].includes(o.status));
     const canRequestBill = hasBillableOrders && !hasPendingOrders;
 
     const handleAddToCart = (item: MenuItem) => {
@@ -68,7 +68,7 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
     };
     
     const handleCallWaiterClick = () => {
-         onCallWaiter(sessionInfo.tableNumber!, sessionInfo.waiterId);
+         handleCallWaiter(sessionInfo.tableNumber!, sessionInfo.waiterId);
          showModal('🔔 Llamada Enviada', `El Mesonero **${sessionInfo.waiterId}** ha sido notificado para que atienda la **Mesa ${sessionInfo.tableNumber}**.`, 'info');
     }
     
@@ -77,7 +77,7 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
              showModal('⚠️ Carrito Vacío', 'Por favor, añade al menos un producto al carrito antes de enviar el pedido.', 'error');
              return;
         }
-        onPlaceOrder(cart, { ...sessionInfo, clientName: sessionInfo.clientName || 'Anónimo' });
+        handlePlaceOrder(cart, { ...sessionInfo, clientName: sessionInfo.clientName || 'Anónimo' });
         setCart([]); // Limpiar el carrito
         showModal('✅ Pedido Enviado', `Su pedido ha sido enviado al Mesonero **${sessionInfo.waiterId}** y está **pendiente de aprobación**.`, 'success');
     }
@@ -95,7 +95,8 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
     };
 
     const handlePaymentSelection = (method: string) => {
-        onRequestBill(sessionInfo.tableNumber!, method);
+        // FIX: Corrected typo from `onRequestBill` to `handleRequestBill`.
+        handleRequestBill(sessionInfo.tableNumber!, method);
         setPaymentMethodSent(true);
         showModal('✅ Notificación Enviada', `El mesonero **${sessionInfo.waiterId}** ha sido notificado. Vendrá en breve para procesar su pago con **${method}**.`, 'success');
     };
@@ -175,7 +176,7 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
                         {currentCategory === 'all' ? 'Todos los Productos' : currentCategory}
                     </h2>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="space-y-4">
                         {filteredMenu.map(item => {
                              const cartItem = cart.find(ci => ci.id === item.id);
                              return (
@@ -236,7 +237,7 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
                         
                         {/* Order Status Section */}
                         <ClientOrderStatus
-                            orders={orders}
+                            orders={ordersForTable}
                             onRequestBill={handleRequestBillClick}
                             canRequestBill={canRequestBill}
                         />

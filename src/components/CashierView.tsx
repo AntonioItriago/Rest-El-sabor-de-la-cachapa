@@ -3,18 +3,15 @@ import { type SessionInfo, type Order, OrderStatus, type ModalContent } from '..
 import Header from './Header';
 import Modal from './Modal';
 import { formatPrice, convertToVes } from '../utils/formatters';
+import { useData } from '../context/DataContext';
 
 interface CashierViewProps {
     sessionInfo: SessionInfo;
     onExit: () => void;
-    orders: Order[];
-    onClearTable: (tableNumber: string) => void;
-    onReassignTable: (tableNumber: string, newWaiterId: string) => void;
-    waiters: string[];
-    setWaiters: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit, orders, onClearTable, onReassignTable, waiters, setWaiters }) => {
+const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
+    const { orders, waiters, setWaiters, handleClearTable, handleReassignTable } = useData();
     const [modalContent, setModalContent] = useState<ModalContent | null>(null);
     const [reassignModal, setReassignModal] = useState<{ open: boolean; tableNumber: string; currentWaiter: string; }>({ open: false, tableNumber: '', currentWaiter: '' });
     const [newWaiterId, setNewWaiterId] = useState('');
@@ -28,9 +25,8 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit, orders, 
         const ordersToProcess = sessionInfo.tableNumber ? orders.filter(o => o.tableNumber === sessionInfo.tableNumber) : orders;
 
         ordersToProcess.forEach(order => {
-            // FIX: Filter out PAID orders from the active tables view.
             if (order.status !== OrderStatus.PAID) {
-                if (!tables[order.tableNumber]) {
+                 if (!tables[order.tableNumber]) {
                     tables[order.tableNumber] = { waiterId: order.waiterId, clientName: order.clientName, orders: [], total: 0 };
                 }
                 tables[order.tableNumber].orders.push(order);
@@ -44,7 +40,7 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit, orders, 
     
     const confirmCloseTable = () => {
         if (closeTableModal.tableNumber) {
-            onClearTable(closeTableModal.tableNumber);
+            handleClearTable(closeTableModal.tableNumber);
             setSelectedTable(null);
             setCloseTableModal({ open: false, tableNumber: null });
             setModalContent({
@@ -63,7 +59,7 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit, orders, 
     const handleReassignSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (newWaiterId.trim()) {
-            onReassignTable(reassignModal.tableNumber, newWaiterId.trim());
+            handleReassignTable(reassignModal.tableNumber, newWaiterId.trim());
             setReassignModal({ open: false, tableNumber: '', currentWaiter: '' });
              setModalContent({
                 title: '✅ Reasignación Exitosa',
@@ -94,7 +90,6 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit, orders, 
             [OrderStatus.APPROVED]: 'bg-green-100 text-green-800',
             [OrderStatus.DELIVERED]: 'bg-blue-100 text-blue-800',
             [OrderStatus.BILL_REQUESTED]: 'bg-red-100 text-red-800',
-            // FIX: Add styling for the PAID status.
             [OrderStatus.PAID]: 'bg-purple-100 text-purple-800',
         };
         return colors[status] || 'bg-slate-100 text-slate-800';
