@@ -134,17 +134,19 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit, orders, 
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {Object.entries(activeTables).map(([tableNum, data]) => {
-                                    const isBillRequested = data.orders.some(o => o.status === OrderStatus.BILL_REQUESTED);
+                                    // Fix: Cast `data` to its expected type to resolve property access errors.
+                                    const typedData = data as { orders: Order[]; waiterId: string; total: number; };
+                                    const isBillRequested = typedData.orders.some(o => o.status === OrderStatus.BILL_REQUESTED);
                                     return (
                                     <button key={tableNum} onClick={() => setSelectedTable(tableNum)} className={`p-4 bg-white rounded-lg shadow border text-left transition hover:shadow-md hover:border-indigo-500 ${isBillRequested ? 'border-red-500 animate-pulse-slow' : 'border-gray-200'}`}>
                                         <div className="flex justify-between items-center">
                                             <h3 className="font-bold text-lg">Mesa {tableNum}</h3>
                                             {isBillRequested && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-800">Solicitando Cuenta</span>}
                                         </div>
-                                        <p className="text-sm text-gray-600">Mesero: <span className="font-semibold">{data.waiterId}</span></p>
+                                        <p className="text-sm text-gray-600">Mesero: <span className="font-semibold">{typedData.waiterId}</span></p>
                                         <p className="text-sm text-gray-600 mt-1">
-                                            Total: <strong className="text-md">{formatPrice(data.total, 'USD')}</strong> 
-                                            <span className="text-green-600"> / {formatPrice(convertToVes(data.total), 'VES')}</span>
+                                            Total: <strong className="text-md">{formatPrice(typedData.total, 'USD')}</strong> 
+                                            <span className="text-green-600"> / {formatPrice(convertToVes(typedData.total), 'VES')}</span>
                                         </p>
                                     </button>
                                 )})}

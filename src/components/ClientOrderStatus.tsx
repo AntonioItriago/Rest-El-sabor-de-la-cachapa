@@ -14,7 +14,6 @@ const ClientOrderStatus: React.FC<ClientOrderStatusProps> = ({ orders, onRequest
     }
     
     const approvedTotal = orders
-        // FIX: Exclude PAID orders from the billable total.
         .filter(o => o.status !== OrderStatus.PENDING && o.status !== OrderStatus.PAID)
         .reduce((sum, order) => sum + order.total, 0);
 
@@ -28,8 +27,7 @@ const ClientOrderStatus: React.FC<ClientOrderStatusProps> = ({ orders, onRequest
                 return 'bg-blue-200 text-blue-800';
             case OrderStatus.BILL_REQUESTED:
                 return 'bg-red-200 text-red-800';
-            // FIX: Add styling for the PAID status.
-            case OrderStatus.PAID:
+             case OrderStatus.PAID:
                 return 'bg-purple-200 text-purple-800';
             default:
                 return 'bg-gray-200 text-gray-800';

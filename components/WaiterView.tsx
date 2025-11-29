@@ -129,7 +129,8 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit, orders, on
                     ) : (
                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {Object.entries(billRequestTables).map(([tableNum, data]) => {
-                                const total = data.orders.reduce((sum, o) => sum + o.total, 0);
+                                // Fix: Cast `data` to its expected type to resolve property access errors.
+                                const typedData = data as { clientName?: string; paymentMethod?: string };
                                 return (
                                      <div key={tableNum} className="bg-red-50 rounded-lg shadow-lg p-4 border-2 border-red-400 flex flex-col justify-between">
                                         <div>
@@ -137,8 +138,8 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit, orders, on
                                                 <span className="font-bold text-lg text-gray-900">Mesa {tableNum}</span>
                                                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-800">PAGO SOLICITADO</span>
                                             </div>
-                                            {data.clientName && data.clientName !== 'Anónimo' && <p className="text-sm text-gray-700">Cliente: <span className="font-semibold">{data.clientName}</span></p>}
-                                            <p className="text-sm font-semibold text-gray-700">Forma de Pago: <span className="font-bold text-red-700">{data.paymentMethod}</span></p>
+                                            {typedData.clientName && typedData.clientName !== 'Anónimo' && <p className="text-sm text-gray-700">Cliente: <span className="font-semibold">{typedData.clientName}</span></p>}
+                                            <p className="text-sm font-semibold text-gray-700">Forma de Pago: <span className="font-bold text-red-700">{typedData.paymentMethod}</span></p>
                                         </div>
                                         <button 
                                             onClick={() => handleConfirmPayment(tableNum)}

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { type SessionInfo } from '../types';
 import { formatPrice } from '../utils/formatters';

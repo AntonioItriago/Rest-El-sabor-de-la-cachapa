@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { type SessionInfo, type Order, OrderStatus, type ModalContent } from '../types';
 import Header from './Header';
@@ -23,27 +24,47 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
     const [selectedTablesToAssign, setSelectedTablesToAssign] = useState<string[]>([]);
 
     const activeTables = useMemo(() => {
-        const tables: { [key: string]: { waiterId: string | null, clientName?: string, orders: Order[], total: number } } = {};
+        const tables: { [key: string]: { waiterId: string | null, clientName?: string, orders: Order[], total: number, status: 'Ocupada' | 'Solicitando Cuenta' | 'Pagada' | 'Libre' } } = {};
         const ordersToProcess = sessionInfo.tableNumber ? orders.filter(o => o.tableNumber === sessionInfo.tableNumber) : orders;
 
+        // Initialize with all assigned tables
+        Object.keys(tableAssignments).forEach(tableNum => {
+            tables[tableNum] = {
+                waiterId: tableAssignments[tableNum],
+                orders: [],
+                total: 0,
+                status: 'Libre',
+                clientName: ''
+            };
+        });
+
+        // Populate with order data
         ordersToProcess.forEach(order => {
-            if (order.status !== OrderStatus.PAID) {
-                if (!tables[order.tableNumber]) {
-                    tables[order.tableNumber] = { waiterId: order.waiterId, clientName: order.clientName, orders: [], total: 0 };
-                }
+            if (tables[order.tableNumber]) {
                 tables[order.tableNumber].orders.push(order);
-                if (order.status !== OrderStatus.PENDING) {
+                 if (order.clientName) {
+                    tables[order.tableNumber].clientName = order.clientName;
+                }
+                if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PAID) {
                     tables[order.tableNumber].total += order.total;
                 }
             }
         });
         
-        // Also show tables that are active but have no orders yet
-        Object.entries(tableAssignments).forEach(([tableNum, waiterId]) => {
-            if (waiterId && !tables[tableNum]) {
-                 tables[tableNum] = { waiterId, orders: [], total: 0 };
+        // Determine status
+        Object.keys(tables).forEach(tableNum => {
+            const tableData = tables[tableNum];
+            if (tableData.orders.length > 0) {
+                 if (tableData.orders.some(o => o.status === OrderStatus.BILL_REQUESTED)) {
+                    tableData.status = 'Solicitando Cuenta';
+                } else if (tableData.orders.every(o => o.status === OrderStatus.PAID)) {
+                     tableData.status = 'Pagada';
+                } else {
+                    tableData.status = 'Ocupada';
+                }
             }
         });
+
 
         return tables;
     }, [orders, sessionInfo.tableNumber, tableAssignments]);
@@ -140,6 +161,16 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
         const isBillRequested = selectedTableData.orders.some(o => o.status === OrderStatus.BILL_REQUESTED);
         return isBillRequested;
     }, [selectedTableData]);
+    
+     const getTableStatusColor = (status: 'Ocupada' | 'Solicitando Cuenta' | 'Pagada' | 'Libre') => {
+        const colors = {
+            'Libre': 'border-slate-200',
+            'Ocupada': 'border-blue-500',
+            'Solicitando Cuenta': 'border-red-500 animate-pulse-slow',
+            'Pagada': 'border-purple-500',
+        };
+        return colors[status] || 'border-slate-200';
+    }
 
     return (
         <>
@@ -153,7 +184,7 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                 {!selectedTable ? (
                      <section>
                         <div className="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
-                                <h2 className="text-2xl font-bold text-slate-800">Gestión de Mesas Activas</h2>
+                                <h2 className="text-2xl font-bold text-slate-800">Gestión de Mesas</h2>
                                 {!sessionInfo.tableNumber && (
                                     <button onClick={() => setIsWaiterModalOpen(true)} className="py-1 px-4 text-sm bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600 transition">
                                         Gestionar Mesoneros
@@ -161,24 +192,27 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                                 )}
                         </div>
                         {Object.keys(activeTables).length === 0 ? (
-                            <div className="text-center py-8 bg-slate-50 rounded-lg"><p className="text-slate-500">No hay mesas con consumo activo.</p></div>
+                            <div className="text-center py-8 bg-slate-50 rounded-lg"><p className="text-slate-500">No hay mesas configuradas.</p></div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {Object.entries(activeTables).map(([tableNum, data]) => {
-                                    const isBillRequested = data.orders.some(o => o.status === OrderStatus.BILL_REQUESTED);
+                                    // Fix: Cast `data` to its expected type to resolve property access errors.
+                                    const typedData = data as { waiterId: string | null; total: number; status: 'Ocupada' | 'Solicitando Cuenta' | 'Pagada' | 'Libre' };
                                     return (
-                                    <button key={tableNum} onClick={() => setSelectedTable(tableNum)} className={`p-4 bg-white rounded-lg shadow border text-left transition hover:shadow-md hover:border-indigo-500 ${isBillRequested ? 'border-red-500 animate-pulse-slow' : 'border-slate-200'}`}>
-                                        <div className="flex justify-between items-center">
-                                            <h3 className="font-bold text-lg">Mesa {tableNum}</h3>
-                                            {isBillRequested && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800">Solicitando Cuenta</span>}
-                                        </div>
-                                        <p className="text-sm text-slate-600">Mesero: <span className="font-semibold">{data.waiterId || 'No Asignado'}</span></p>
-                                        <p className="text-sm text-slate-600 mt-1">
-                                            Total: <strong className="text-md">{formatPrice(data.total, 'USD')}</strong> 
-                                            <span className="text-green-600"> / {formatPrice(convertToVes(data.total), 'VES')}</span>
-                                        </p>
-                                    </button>
-                                )})}
+                                        <button key={tableNum} onClick={() => setSelectedTable(tableNum)} className={`p-4 bg-white rounded-lg shadow-md border-2 text-left transition hover:shadow-lg hover:-translate-y-1 ${getTableStatusColor(typedData.status)}`}>
+                                            <div className="flex justify-between items-start">
+                                                <h3 className="font-bold text-lg">Mesa {tableNum}</h3>
+                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typedData.status === 'Solicitando Cuenta' ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-800'}`}>{typedData.status}</span>
+                                            </div>
+                                            <p className="text-sm text-slate-600">Mesero: <span className="font-semibold">{typedData.waiterId || 'No Asignado'}</span></p>
+                                            {typedData.total > 0 && 
+                                                <p className="text-sm text-slate-600 mt-1">
+                                                    Total: <strong className="text-md">{formatPrice(typedData.total, 'USD')}</strong>
+                                                </p>
+                                            }
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
                     </section>
@@ -197,13 +231,15 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                             
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                                 <div>
-                                    <p className="text-sm text-slate-600">Mesero Actual: <span className="font-semibold">{selectedTableData.waiterId}</span></p>
+                                    <p className="text-sm text-slate-600">Mesero Actual: <span className="font-semibold">{selectedTableData.waiterId || 'No Asignado'}</span></p>
                                     {selectedTableData.clientName && <p className="text-sm text-slate-600">Cliente: <span className="font-semibold">{selectedTableData.clientName}</span></p>}
-                                    <div className="text-slate-600 mt-2">
-                                        <span className="text-lg font-semibold">Total a Pagar:</span>
-                                        <p className="font-extrabold text-3xl text-slate-900">{formatPrice(selectedTableData.total, 'USD')}</p>
-                                        <p className="font-bold text-2xl text-green-600">{formatPrice(convertToVes(selectedTableData.total), 'VES')}</p>
-                                    </div>
+                                    {selectedTableData.total > 0 && 
+                                        <div className="text-slate-600 mt-2">
+                                            <span className="text-lg font-semibold">Total a Pagar:</span>
+                                            <p className="font-extrabold text-3xl text-slate-900">{formatPrice(selectedTableData.total, 'USD')}</p>
+                                            <p className="font-bold text-2xl text-green-600">{formatPrice(convertToVes(selectedTableData.total), 'VES')}</p>
+                                        </div>
+                                    }
                                     {selectedTableData.orders.find(o => o.status === OrderStatus.BILL_REQUESTED)?.paymentMethod && (
                                         <p className="text-sm font-semibold text-red-700 mt-1">
                                             Forma de Pago Solicitada: <span className="font-bold">{selectedTableData.orders.find(o => o.status === OrderStatus.BILL_REQUESTED)!.paymentMethod}</span>
@@ -302,7 +338,10 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                             </div>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-b-xl flex justify-end space-x-3">
-                            <button type="button" onClick={() => setAssignTableModal({ open: false, waiter: null, tables: []})} className="py-2 px-4 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">Omitir</button>
+                            <button type="button" onClick={() => {
+                                setAssignTableModal({ open: false, waiter: null, tables: [] });
+                                setNewWaiterName('');
+                            }} className="py-2 px-4 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">Omitir</button>
                             <button type="submit" className="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition">Asignar ({selectedTablesToAssign.length})</button>
                         </div>
                     </form>
@@ -327,7 +366,7 @@ const CashierView: React.FC<CashierViewProps> = ({ sessionInfo, onExit }) => {
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
                                 >
                                     <option value="" disabled>Selecciona un mesero</option>
-                                    {waiters.map(waiter => (
+                                    {waiters.filter(w => w !== reassignModal.currentWaiter).map(waiter => (
                                         <option key={waiter} value={waiter}>{waiter}</option>
                                     ))}
                                 </select>

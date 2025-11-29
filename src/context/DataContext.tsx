@@ -132,6 +132,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const handleReassignTable = (tableNumber: string, newWaiterId: string) => {
         const updates: { [key: string]: any } = {};
+        // Update table assignment
+        updates[`/tableAssignments/${tableNumber}`] = newWaiterId;
+
+        // Update waiterId on existing, non-paid orders for that table
         orders.forEach(order => {
             if (order.tableNumber === tableNumber && order.status !== OrderStatus.PAID) {
                  updates[`/orders/${order.id}/waiterId`] = newWaiterId;
@@ -160,6 +164,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const newWaiters = waiters.filter(w => w !== waiterToDelete);
             set(ref(db, 'waiters'), newWaiters);
         }
+        // Unassign all tables from this waiter
         const updates: { [key: string]: null } = {};
         Object.entries(tableAssignments).forEach(([table, waiter]) => {
             if (waiter === waiterToDelete) {

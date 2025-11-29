@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { type SessionInfo, type Order, OrderStatus, type ModalContent } from '../types';
 import Header from './Header';
@@ -11,30 +12,51 @@ interface WaiterViewProps {
 }
 
 const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit }) => {
-    const { orders, waiterCalls, handleApproveOrder, handleMarkAsDelivered, handleAcknowledgeCall, handleMarkTableAsPaid } = useData();
+    const { orders, waiterCalls, handleApproveOrder, handleMarkAsDelivered, handleAcknowledgeCall, handleMarkTableAsPaid, tableAssignments } = useData();
     const [modalContent, setModalContent] = useState<ModalContent | null>(null);
 
-    const { waiterId: currentWaiterId, tableNumber } = sessionInfo;
+    const { waiterId: currentWaiterId, tableNumber: singleTableMode } = sessionInfo;
 
+    const assignedTables = useMemo(() => {
+        return Object.entries(tableAssignments)
+            .filter(([, waiter]) => waiter === currentWaiterId)
+            .map(([tableNum]) => tableNum)
+            .sort((a,b) => parseInt(a) - parseInt(b));
+    }, [tableAssignments, currentWaiterId]);
+
+    const tableStatuses = useMemo(() => {
+        const statuses: { [key: string]: { status: 'Libre' | 'Ocupada' | 'Solicitando Cuenta', orders: Order[] } } = {};
+        assignedTables.forEach(tableNum => {
+            const ordersForTable = orders.filter(o => o.tableNumber === tableNum);
+            let status: 'Libre' | 'Ocupada' | 'Solicitando Cuenta' = 'Libre';
+            if (ordersForTable.length > 0) {
+                if (ordersForTable.some(o => o.status === OrderStatus.BILL_REQUESTED)) {
+                    status = 'Solicitando Cuenta';
+                } else {
+                    status = 'Ocupada';
+                }
+            }
+            statuses[tableNum] = { status, orders: ordersForTable };
+        });
+        return statuses;
+    }, [assignedTables, orders]);
+    
     const ordersForView = useMemo(() => {
-        if (tableNumber) {
-            return orders.filter(o => o.tableNumber === tableNumber);
+        if (singleTableMode) {
+            return orders.filter(o => o.tableNumber === singleTableMode);
         }
-        return orders;
-    }, [orders, tableNumber]);
+        // Show all orders assigned to this waiter, not just from one table
+        return orders.filter(o => o.waiterId === currentWaiterId);
+    }, [orders, singleTableMode, currentWaiterId]);
     
     const callsForThisWaiter = useMemo(() => {
-        const calls = waiterCalls.filter(call => call.waiterId === currentWaiterId);
-        if (tableNumber) {
-            return calls.filter(call => call.tableNumber === tableNumber);
-        }
-        return calls;
-    }, [waiterCalls, currentWaiterId, tableNumber]);
+        return waiterCalls.filter(call => call.waiterId === currentWaiterId);
+    }, [waiterCalls, currentWaiterId]);
     
     const billRequestTables = useMemo(() => {
         const tables: { [key: string]: { orders: Order[], paymentMethod?: string, clientName?: string } } = {};
         ordersForView
-            .filter(o => o.status === OrderStatus.BILL_REQUESTED)
+            .filter(o => o.status === OrderStatus.BILL_REQUESTED && o.waiterId === currentWaiterId)
             .forEach(order => {
                 if (!tables[order.tableNumber]) {
                     tables[order.tableNumber] = { 
@@ -46,7 +68,7 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit }) => {
                 tables[order.tableNumber].orders.push(order);
             });
         return tables;
-    }, [ordersForView]);
+    }, [ordersForView, currentWaiterId]);
 
     const pendingOrders = ordersForView.filter(o => o.status === OrderStatus.PENDING).sort((a, b) => a.timestamp - b.timestamp);
     const activeOrders = ordersForView.filter(o => o.status !== OrderStatus.PENDING && o.status !== OrderStatus.BILL_REQUESTED).sort((a, b) => b.timestamp - a.timestamp);
@@ -93,6 +115,28 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit }) => {
         <>
             <Header title="Panel de Mesero" sessionInfo={sessionInfo} onExit={onExit} isWaiter={true} />
             <main className="max-w-7xl mx-auto p-4 w-full space-y-10">
+                 {!singleTableMode && (
+                     <section>
+                        <h2 className="text-2xl font-bold text-slate-800 mb-4 border-b pb-2">Mis Mesas Asignadas</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            {assignedTables.map(tableNum => {
+                                const tableData = tableStatuses[tableNum];
+                                const statusColor = {
+                                    'Libre': 'bg-green-100 text-green-800',
+                                    'Ocupada': 'bg-blue-100 text-blue-800',
+                                    'Solicitando Cuenta': 'bg-red-100 text-red-800 animate-pulse-slow'
+                                }[tableData.status];
+                                return (
+                                    <div key={tableNum} className="p-3 bg-white rounded-lg shadow-md text-center border-t-4 border-indigo-500">
+                                        <div className="font-bold text-lg text-slate-900">Mesa {tableNum}</div>
+                                        <div className={`mt-2 text-xs font-semibold px-2 py-0.5 rounded-full inline-block ${statusColor}`}>{tableData.status}</div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </section>
+                 )}
+
                 {callsForThisWaiter.length > 0 && (
                      <section>
                         <h2 className="text-2xl font-bold text-yellow-600 mb-4 border-b-2 border-yellow-200 pb-2">Llamadas de Mesa ({callsForThisWaiter.length})</h2>
@@ -119,6 +163,8 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit }) => {
                     ) : (
                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {Object.entries(billRequestTables).map(([tableNum, data]) => {
+                                // Fix: Cast `data` to its expected type to resolve property access errors.
+                                const typedData = data as { clientName?: string; paymentMethod?: string };
                                 return (
                                      <div key={tableNum} className="bg-red-50 rounded-lg shadow-lg p-4 border-2 border-red-400 flex flex-col justify-between">
                                         <div>
@@ -126,8 +172,8 @@ const WaiterView: React.FC<WaiterViewProps> = ({ sessionInfo, onExit }) => {
                                                 <span className="font-bold text-lg text-slate-900">Mesa {tableNum}</span>
                                                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800">PAGO SOLICITADO</span>
                                             </div>
-                                            {data.clientName && data.clientName !== 'Anónimo' && <p className="text-sm text-slate-700">Cliente: <span className="font-semibold">{data.clientName}</span></p>}
-                                            <p className="text-sm font-semibold text-slate-700">Forma de Pago: <span className="font-bold text-red-700">{data.paymentMethod}</span></p>
+                                            {typedData.clientName && typedData.clientName !== 'Anónimo' && <p className="text-sm text-slate-700">Cliente: <span className="font-semibold">{typedData.clientName}</span></p>}
+                                            <p className="text-sm font-semibold text-slate-700">Forma de Pago: <span className="font-bold text-red-700">{typedData.paymentMethod}</span></p>
                                         </div>
                                         <button 
                                             onClick={() => handleConfirmPayment(tableNum)}

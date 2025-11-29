@@ -174,7 +174,7 @@ const ClientView: React.FC<ClientViewProps> = ({ menuData, categories, sessionIn
                         {currentCategory === 'all' ? 'Todos los Productos' : currentCategory}
                     </h2>
                     
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredMenu.map(item => {
                              const cartItem = cart.find(ci => ci.id === item.id);
                              return (

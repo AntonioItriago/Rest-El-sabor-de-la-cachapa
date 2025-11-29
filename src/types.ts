@@ -36,7 +36,6 @@ export enum OrderStatus {
     APPROVED = 'Aprobado - En Cocina',
     DELIVERED = 'Entregado',
     BILL_REQUESTED = 'Solicitando Cuenta',
-    // FIX: Add PAID status to resolve type errors and align logic.
     PAID = 'Pagado',
 }
 
